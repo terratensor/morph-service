@@ -1,0 +1,19 @@
+# Core
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+pydantic==2.11.3
+pydantic-settings==2.8.1
+
+# Russian morphology
+pymorphy3==2.0.6
+pymorphy3-dicts-ru==2.4.417150.4580142
+
+# Latin morphology
+spacy==3.8.4
+
+# Caching
+aioredis==2.0.1
+
+# Utilities
+python-multipart==0.0.20
+python-dotenv==1.0.1

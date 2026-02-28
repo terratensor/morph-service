@@ -1,31 +1,36 @@
-version: '3.8'
-
 services:
   morph-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
     container_name: morph-service
     ports:
       - "8000:8000"
-    restart: unless-stopped
-    volumes:
-      # Для разработки можно монтировать код (раскомментировать при необходимости)
-      # - ./morph_service.py:/app/morph_service.py
-      - morph-data:/tmp
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKERS=4
+      - ENV=production
+    depends_on:
+      - redis
     networks:
-      - gmtx-webui_default
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8155/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      - app-network
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  redis:
+    image: redis:7-alpine
+    container_name: morph-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
 
 networks:
-  gmtx-webui_default:
+  app-network:
     driver: bridge
-    external: true
 
 volumes:
-  morph-data:
+  redis-data:

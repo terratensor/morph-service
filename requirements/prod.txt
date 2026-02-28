@@ -1,0 +1,4 @@
+-r base.txt
+
+# Production optimizations
+gunicorn==23.0.0
