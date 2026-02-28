@@ -9,7 +9,7 @@ pymorphy3==2.0.6
 pymorphy3-dicts-ru==2.4.417150.4580142
 
 # Latin morphology
-spacy==3.8.4
+spacy==3.8.11
 
 # Caching
 aioredis==2.0.1
