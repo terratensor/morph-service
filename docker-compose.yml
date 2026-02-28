@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  morph-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: morph-service
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      # Для разработки можно монтировать код (раскомментировать при необходимости)
+      # - ./morph_service.py:/app/morph_service.py
+      - morph-data:/tmp
+    networks:
+      - gmtx-webui_default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8155/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  gmtx-webui_default:
+    driver: bridge
+    external: true
+
+volumes:
+  morph-data:
