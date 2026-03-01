@@ -11,6 +11,7 @@ from .models.response import AnalyzeResponse, HealthResponse, StatsResponse, Bat
 from .services.batch_processor import BatchProcessor
 from .cache.redis_client import RedisCache
 from .utils.text_utils import normalize_text
+from app.models.toponym import ToponymExtractResponse, ToponymWordAnalysis
 
 # Настройка логирования
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
@@ -127,6 +128,39 @@ async def analyze_text(request: AnalyzeRequest):
         return result
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/extract-toponyms", response_model=ToponymExtractResponse, tags=["Toponyms"])
+async def extract_toponyms(request: AnalyzeRequest):
+    """
+    Извлечение топонимов с расчетом релевантности (формат MVP)
+    
+    Возвращает полный морфологический анализ с relevance_score для каждого слова.
+    Для русского языка используется алгоритм из MVP сервиса.
+    Для английского языка пока заглушка (все слова с relevance=0.5).
+    """
+    global processor
+    
+    if not processor:
+        raise HTTPException(status_code=503, detail="Service not ready")
+    
+    if len(request.text) > settings.MAX_TEXT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Text too long. Max {settings.MAX_TEXT_LENGTH} characters"
+        )
+    
+    # Нормализация текста
+    normalized_text = normalize_text(request.text)
+    
+    try:
+        result = await processor.extract_toponyms(
+            normalized_text,
+            language_hint=request.language
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Toponym extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/batch", response_model=BatchResponse, tags=["Analysis"])
