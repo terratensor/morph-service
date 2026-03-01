@@ -27,15 +27,29 @@ class LatinAnalyzer(BaseAnalyzer):
         
         self.model = model
     
-    def analyze_word(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
-        """Анализ одного слова"""
-        start_time = time.time()
-        
+    def _analyze_single(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
+        """Внутренний метод анализа одного слова"""
         # Очищаем слово
         clean_word = word.strip('.,!?;:"()[]{}<>-—–…\'\"')
         
+        if not clean_word:
+            return AnalysisResult(
+                word='',
+                original=word,
+                pos='unknown',
+                pos_eng='UNKN',
+                case='',
+                number='',
+                gender='',
+                normal_form='',
+                score=0.0,
+                is_geo_marker=False,
+                is_uppercase=False,
+                is_sentence_start=False,
+            )
+        
         # Определяем регистр
-        is_upper = clean_word and clean_word[0].isupper()
+        is_upper = clean_word[0].isupper()
         
         # Анализ с spaCy
         doc = self.nlp(clean_word)
@@ -47,51 +61,50 @@ class LatinAnalyzer(BaseAnalyzer):
             normal_form = token.lemma_
             
             # Извлекаем морфологические признаки
-            morph = token.morph
-            number = 'singular' if morph.get('Number') == ['Sing'] else 'plural'
-            gender = morph.get('Gender', [''])[0] if morph.get('Gender') else ''
+            number = 'singular' if token.morph.get('Number') == ['Sing'] else 'plural'
+            gender = token.morph.get('Gender', [''])[0] if token.morph.get('Gender') else ''
         else:
             pos = 'unknown'
-            pos_eng = 'unknown'
+            pos_eng = 'UNKN'
             normal_form = clean_word.lower()
             number = ''
             gender = ''
         
-        # Создаем результат
-        result = AnalysisResult(
+        return AnalysisResult(
             word=clean_word,
             original=word,
             pos=pos,
             pos_eng=pos_eng,
-            case='',  # В английском нет падежей
+            case='',
             number=number,
             gender=gender,
             normal_form=normal_form,
             score=1.0,
-            is_geo_marker=False,  # TODO: добавить английские маркеры
+            is_geo_marker=False,
             is_uppercase=is_upper,
             is_sentence_start=False,
         )
-        
-        elapsed = time.time() - start_time
-        self._update_stats(1, elapsed)
-        
-        return result
     
     def analyze_batch(self, words: List[str]) -> List[AnalysisResult]:
-        """Пакетный анализ с использованием spaCy pipeline"""
+        """Переопределяем для оптимизации с spaCy pipeline"""
         start_time = time.time()
         
+        # Фильтруем пустые слова
+        valid_words = [w for w in words if w.strip()]
+        if not valid_words:
+            return []
+        
         # Объединяем слова в один текст для эффективности
-        text = ' '.join(words)
+        text = ' '.join(valid_words)
         doc = self.nlp(text)
         
         results = []
+        token_idx = 0
         for token in doc:
             if not token.is_punct:
                 result = AnalysisResult(
                     word=token.text,
-                    original=token.text,
+                    original=valid_words[token_idx] if token_idx < len(valid_words) else token.text,
                     pos=token.pos_,
                     pos_eng=token.tag_,
                     case='',
@@ -104,9 +117,12 @@ class LatinAnalyzer(BaseAnalyzer):
                     is_sentence_start=False,
                 )
                 results.append(result)
+                token_idx += 1
         
         elapsed = time.time() - start_time
-        self._update_stats(len(words), elapsed)
+        self.stats['words_processed'] += len(valid_words)
+        self.stats['batches_processed'] += 1
+        self.stats['total_time'] += elapsed
         
         return results
     

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -57,21 +58,43 @@ class BaseAnalyzer(ABC):
     
     def __init__(self, language: str):
         self.language = language
-        self.stats = {
-            'words_processed': 0,
-            'batches_processed': 0,
-            'total_time': 0.0,
-        }
+        self.reset_stats()
     
     @abstractmethod
-    def analyze_word(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
-        """Анализ одного слова"""
+    def _analyze_single(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
+        """Внутренний метод анализа одного слова (без обновления статистики)"""
         pass
     
-    @abstractmethod
+    def analyze_word(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
+        """Анализ одного слова с обновлением статистики"""
+        start_time = time.time()
+        result = self._analyze_single(word, context)
+        elapsed = time.time() - start_time
+        
+        self.stats['words_processed'] += 1
+        self.stats['total_time'] += elapsed
+        # НЕ увеличиваем batches_processed для одиночных слов
+        
+        return result
+    
     def analyze_batch(self, words: List[str]) -> List[AnalysisResult]:
         """Пакетный анализ слов"""
-        pass
+        start_time = time.time()
+        results = []
+        
+        for word in words:
+            # Используем _analyze_single чтобы не обновлять статистику для каждого слова
+            result = self._analyze_single(word)
+            results.append(result)
+        
+        elapsed = time.time() - start_time
+        
+        # Обновляем статистику для всего батча
+        self.stats['words_processed'] += len(words)
+        self.stats['batches_processed'] += 1
+        self.stats['total_time'] += elapsed
+        
+        return results
     
     def get_supported_languages(self) -> List[str]:
         """Список поддерживаемых языков"""
@@ -88,9 +111,3 @@ class BaseAnalyzer(ABC):
     def get_stats(self) -> Dict[str, Any]:
         """Получение статистики"""
         return self.stats.copy()
-    
-    def _update_stats(self, word_count: int, batch_time: float):
-        """Обновление статистики"""
-        self.stats['words_processed'] += word_count
-        self.stats['batches_processed'] += 1
-        self.stats['total_time'] += batch_time

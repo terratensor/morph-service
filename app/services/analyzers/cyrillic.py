@@ -27,25 +27,25 @@ class CyrillicAnalyzer(BaseAnalyzer):
         'INTJ': 'междометие',
     }
     
-    # Маппинг тегов на английские
+    # Маппинг тегов на английские (ВЕРХНИЙ РЕГИСТР для тестов)
     POS_MAP_ENG = {
-        'NOUN': 'noun',
-        'ADJF': 'adj',
-        'ADJS': 'adj',
-        'COMP': 'comp',
-        'VERB': 'verb',
-        'INFN': 'verb',
-        'PRTF': 'part',
-        'PRTS': 'part',
-        'GRND': 'adv',
-        'NUMR': 'num',
-        'ADVB': 'adv',
-        'NPRO': 'pron',
-        'PRED': 'pred',
-        'PREP': 'prep',
-        'CONJ': 'conj',
-        'PRCL': 'part',
-        'INTJ': 'intj',
+        'NOUN': 'NOUN',
+        'ADJF': 'ADJ',
+        'ADJS': 'ADJ',
+        'COMP': 'COMP',
+        'VERB': 'VERB',
+        'INFN': 'VERB',
+        'PRTF': 'PART',
+        'PRTS': 'PART',
+        'GRND': 'ADV',
+        'NUMR': 'NUM',
+        'ADVB': 'ADV',
+        'NPRO': 'PRON',
+        'PRED': 'PRED',
+        'PREP': 'PREP',
+        'CONJ': 'CONJ',
+        'PRCL': 'PART',
+        'INTJ': 'INTJ',
     }
     
     # Падежи
@@ -96,15 +96,30 @@ class CyrillicAnalyzer(BaseAnalyzer):
         super().__init__(language)
         self.analyzer = pymorphy3.MorphAnalyzer(lang=language)
     
-    def analyze_word(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
-        """Анализ одного слова"""
-        start_time = time.time()
-        
+    def _analyze_single(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
+        """Внутренний метод анализа одного слова (без статистики)"""
         # Очищаем слово от пунктуации
         clean_word = word.strip('.,!?;:"()[]{}<>-—–…\'\"')
         
+        if not clean_word:
+            # Возвращаем пустой результат для пустого слова
+            return AnalysisResult(
+                word='',
+                original=word,
+                pos='unknown',
+                pos_eng='UNKN',
+                case='',
+                number='',
+                gender='',
+                normal_form='',
+                score=0.0,
+                is_geo_marker=False,
+                is_uppercase=False,
+                is_sentence_start=False,
+            )
+        
         # Определяем регистр
-        is_upper = clean_word and clean_word[0].isupper()
+        is_upper = clean_word[0].isupper()
         
         # Определяем, является ли слово географическим маркером
         is_geo = clean_word.lower() in self.GEO_MARKERS
@@ -115,7 +130,7 @@ class CyrillicAnalyzer(BaseAnalyzer):
         # Извлекаем теги
         pos_tag = parsed.tag.POS if parsed.tag.POS else 'UNKN'
         pos_ru = self.POS_MAP.get(pos_tag, 'неизвестно')
-        pos_eng = self.POS_MAP_ENG.get(pos_tag, 'unknown')
+        pos_eng = self.POS_MAP_ENG.get(pos_tag, 'UNKN')
         
         case_tag = parsed.tag.case if parsed.tag.case else ''
         case_ru = self.CASE_MAP.get(case_tag, '')
@@ -133,7 +148,7 @@ class CyrillicAnalyzer(BaseAnalyzer):
         score = parsed.score
         
         # Создаем результат
-        result = AnalysisResult(
+        return AnalysisResult(
             word=clean_word,
             original=word,
             pos=pos_ru,
@@ -145,20 +160,5 @@ class CyrillicAnalyzer(BaseAnalyzer):
             score=score,
             is_geo_marker=is_geo,
             is_uppercase=is_upper,
-            is_sentence_start=False,  # Будет установлено позже
+            is_sentence_start=False,
         )
-        
-        # Обновляем статистику
-        elapsed = time.time() - start_time
-        self._update_stats(1, elapsed)
-        
-        return result
-    
-    def analyze_batch(self, words: List[str]) -> List[AnalysisResult]:
-        """Пакетный анализ слов"""
-        start_time = time.time()
-        results = [self.analyze_word(w) for w in words]
-        elapsed = time.time() - start_time
-        
-        self._update_stats(len(words), elapsed)
-        return results
