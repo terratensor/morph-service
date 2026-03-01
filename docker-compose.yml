@@ -19,7 +19,7 @@ services:
         condition: service_healthy
     networks:
       - morph-network
-      - gmtx-net
+      - gmtx_net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -43,7 +43,7 @@ services:
       - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
     networks:
       - morph-network
-      - gmtx-net
+      - gmtx_net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -67,7 +67,7 @@ services:
       - "8081:8081"
     networks:
       - morph-network
-      - gmtx-net
+      - gmtx_net
     depends_on:
       - redis
     restart: unless-stopped
@@ -75,7 +75,7 @@ services:
       - dev
 
 networks:
-  gmtx-net:
+  gmtx_net:
     external: true
   morph-network:
     driver: bridge
