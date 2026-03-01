@@ -39,6 +39,17 @@ pip install -r requirements/dev.txt
 # Run tests
 pytest
 
+pytest tests/test_detector.py -v
+
+# С покрытием
+pytest tests/test_detector.py -v --cov=app.services.detector --cov-report=term
+
+# С подробным отчетом
+pytest tests/test_detector.py -v --cov=app.services.detector --cov-report=html
+# Откроется папка htmlcov/, можно открыть index.html в браузере
+
+
+
 # Format code
 black app/ tests/
 isort app/ tests/

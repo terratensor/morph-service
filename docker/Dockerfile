@@ -1,28 +1,33 @@
-FROM python:3.13-slim AS builder
+FROM pytorch/pytorch:2.10.0-cuda13.0-cudnn9-runtime
 
 WORKDIR /app
 
+# Установка системных зависимостей
 RUN apt-get update && apt-get install -y \
-    gcc \
-    python3-dev \
+    git \
+    net-tools \
+    curl \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements/base.txt .
-RUN pip install --user --no-cache-dir -r base.txt
+# Создаём venv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-FROM python:3.13-slim
+# Копируем requirements и устанавливаем
+COPY requirements/base.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip list
 
-WORKDIR /app
-
-COPY --from=builder /root/.local /root/.local
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-
+# Копируем код
 COPY app/ ./app/
-COPY .env.example .env
+COPY .env .env
 
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONPATH=/app
+# Проверяем структуру
+RUN ls -la && ls -la app/
 
-EXPOSE 8000
+# Порт
+EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Запуск с логированием
+CMD ["/opt/venv/bin/python", "-m", "app.main"]
