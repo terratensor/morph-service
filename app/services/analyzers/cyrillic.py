@@ -199,16 +199,30 @@ class CyrillicAnalyzer(BaseAnalyzer):
         """Пост-обработка для русского языка (из MVP)"""
         # Конвертируем в dict для обработки
         words_dict = [w.to_dict() for w in words]
+        
+        # Добавляем недостающее правило из MVP
+        for i, word_dict in enumerate(words_dict):
+            # Слово с большой буквы и есть гео-маркер рядом (но не меняем relevance)
+            if word_dict.get('is_uppercase', False):
+                found_marker = False
+                for j in range(max(0, i-3), min(len(words_dict), i+4)):
+                    if j != i and words_dict[j].get('is_geo_marker', False):
+                        found_marker = True
+                        break
+                
+                if found_marker and word_dict.get('pos') in ['предлог', 'союз', 'частица']:
+                    word_dict['pos'] = 'существительное'
+                    word_dict['pos_eng'] = 'NOUN'
+        
         processed_dict = post_process_context_ru(words_dict)
         
         # Конвертируем обратно в объекты
         processed_words = []
         for i, w_dict in enumerate(processed_dict):
-            # Обновляем relevance_score в исходном объекте
             words[i].relevance_score = w_dict.get('relevance_score', 0)
             if w_dict.get('pos') != words[i].pos:
                 words[i].pos = w_dict['pos']
                 words[i].pos_eng = w_dict['pos_eng']
             processed_words.append(words[i])
         
-        return processed_words    
+        return processed_words
