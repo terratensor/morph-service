@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 class WordAnalysis(BaseModel):
     """Анализ одного слова"""
@@ -25,12 +25,14 @@ class AnalyzeResponse(BaseModel):
     language: Optional[str] = None
     script: str = "unknown"
     processing_time_ms: float = 0.0
+    from_cache: bool = False
 
 class BatchResponse(BaseModel):
     """Ответ на пакетный анализ"""
     results: List[AnalyzeResponse]
     total_time_ms: float = 0.0
     texts_processed: int
+    cache_stats: Dict[str, int] = {}
 
 class HealthResponse(BaseModel):
     """Ответ на health check"""
@@ -38,13 +40,17 @@ class HealthResponse(BaseModel):
     version: str = "2.0.0"
     cache_available: bool = False
     workers: int = 4
-    languages_supported: List[str] = ["ru", "uk", "be", "en"]
-    analyzers_loaded: dict = {}
+    languages_supported: List[str] = ["ru", "en"]
+    analyzers_loaded: Dict[str, List[str]] = {}
+    uptime_seconds: float = 0.0
 
 class StatsResponse(BaseModel):
     """Статистика сервиса"""
+    texts_processed: int = 0
+    total_time_seconds: float = 0.0
+    avg_time_per_text_ms: float = 0.0
     cache_hits: int = 0
     cache_misses: int = 0
-    texts_analyzed: int = 0
-    avg_processing_time: float = 0.0
+    cache_hit_rate: float = 0.0
+    analyzers_loaded: Dict[str, List[str]] = {}
     uptime_seconds: float = 0.0
