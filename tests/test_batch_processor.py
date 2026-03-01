@@ -5,7 +5,8 @@ from app.services.detector import Script
 
 @pytest.fixture
 def processor():
-    return BatchProcessor(max_workers=2)
+    """Создаем процессор БЕЗ кэша для тестов"""
+    return BatchProcessor(max_workers=2, use_cache=False)  # Важно: use_cache=False
 
 @pytest.mark.asyncio
 async def test_process_single_russian(processor):

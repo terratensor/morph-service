@@ -11,8 +11,8 @@ pymorphy3-dicts-ru==2.4.417150.4580142
 # Latin morphology
 spacy==3.8.11
 
-# Caching
-aioredis==2.0.1
+# Caching - используем официальный redis-py
+redis==7.2.1
 
 # Utilities
 python-multipart==0.0.20
