@@ -3,12 +3,16 @@ from asyncio.log import logger
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 import time
+import logging
+
 from ..config import settings
 from .detector import ScriptDetector, Script
 from .analyzers.cyrillic import CyrillicAnalyzer
 from .analyzers.latin import LatinAnalyzer
 from ..utils.text_utils import split_sentences, tokenize
 from ..cache.redis_client import RedisCache
+
+logger = logging.getLogger(__name__)
 
 class BatchProcessor:
     """Пакетный процессор для анализа множества текстов с кэшированием"""
@@ -149,7 +153,117 @@ class BatchProcessor:
         self.stats['total_time'] += elapsed
         
         return result
-    
+
+    async def extract_toponyms(self, text: str, language_hint: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Извлечение топонимов с расчетом релевантности (формат MVP)
+        
+        Args:
+            text: анализируемый текст
+            language_hint: подсказка языка (опционально)
+        
+        Returns:
+            Dict с полным анализом и relevance_score для всех слов
+        """
+        start_time = time.time()
+        
+        # Проверяем кэш
+        if self.use_cache and self.cache:
+            cached = await self.cache.get(text, language_hint)
+            if cached:
+                self.stats['cache_hits'] += 1
+                cached['from_cache'] = True
+                return cached
+        
+        self.stats['cache_misses'] += 1
+        
+        # Определяем скрипт текста
+        script = self.detector.detect(text)
+        
+        # Выбираем анализатор на основе скрипта
+        if script == Script.CYRILLIC:
+            analyzer = self.analyzers['cyrillic']['ru']
+        elif script == Script.LATIN:
+            analyzer = self.analyzers['latin']['en']
+        else:
+            analyzer = None
+        
+        # Разбиваем на предложения
+        sentences = split_sentences(text)
+        
+        all_words = []
+        sentences_indices = []
+        word_index = 0
+        
+        for sentence in sentences:
+            tokens = tokenize(sentence)
+            sentence_results = []
+            
+            for token_idx, token in enumerate(tokens):
+                if token in '.,!?;:"()[]{}':
+                    continue
+                
+                if analyzer:
+                    # Анализируем слово
+                    result = await asyncio.get_event_loop().run_in_executor(
+                        self.executor,
+                        analyzer._analyze_single,
+                        token
+                    )
+                    
+                    # Определяем начало предложения
+                    result.is_sentence_start = (len(sentence_results) == 0)
+                    
+                    sentence_results.append(result)
+                    all_words.append(result)
+                else:
+                    # Базовый результат для неподдерживаемых языков
+                    from .analyzers.base import AnalysisResult
+                    result = AnalysisResult(
+                        word=token,
+                        original=token,
+                        pos='unknown',
+                        pos_eng='UNKN',
+                        normal_form=token.lower()
+                    )
+                    result.is_sentence_start = (len(sentence_results) == 0)
+                    sentence_results.append(result)
+                    all_words.append(result)
+            
+            if sentence_results:
+                sentences_indices.append(list(range(word_index, word_index + len(sentence_results))))
+                word_index += len(sentence_results)
+        
+        # Рассчитываем релевантность для всех слов (если есть анализатор)
+        if analyzer:
+            # Пост-обработка контекста
+            all_words = analyzer.post_process(all_words)
+            
+            # Расчет релевантности для каждого слова
+            for i, word in enumerate(all_words):
+                word.relevance_score = analyzer.calculate_relevance(word, all_words, i)
+        
+        # Формируем результат в формате MVP
+        result = {
+            'words': [w.to_dict() for w in all_words],
+            'sentences': sentences_indices,
+            'text': text,
+            'language': language_hint or self.detector.get_language_hint(text),
+            'script': script.value,
+            'processing_time_ms': (time.time() - start_time) * 1000,
+            'from_cache': False,
+        }
+        
+        # Сохраняем в кэш
+        if self.use_cache and self.cache:
+            await self.cache.set(text, result, language_hint)
+        
+        elapsed = time.time() - start_time
+        self.stats['texts_processed'] += 1
+        self.stats['total_time'] += elapsed
+        
+        return result
+
     async def process_batch(self, texts: List[str]) -> Dict[str, Any]:
         """Пакетная обработка множества текстов"""
         start_time = time.time()
