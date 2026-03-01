@@ -1,3 +1,4 @@
+# Python
 __pycache__
 *.pyc
 *.pyo
@@ -11,10 +12,34 @@ build
 .venv
 venv
 env
-.env
+ENV
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Tests
+.pytest_cache
+.coverage
+htmlcov
+.tox
+
+# Git
 .git
 .gitignore
-README.md
-.dockerignore
-Dockerfile
-docker-compose.yml
+.gitattributes
+
+# Docker
+docker-compose.override.yml
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local

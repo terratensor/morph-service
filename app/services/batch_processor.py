@@ -66,8 +66,8 @@ class BatchProcessor:
         if self.use_cache and self.cache:
             cached = await self.cache.get(text, language_hint)
             if cached:
-                self.stats['cache_hits'] += 1
-                self.stats['texts_processed'] += 1
+                self.stats['cache_hits'] += 1                
+                cached['from_cache'] = True  # Добавляем флаг
                 return cached
         
         self.stats['cache_misses'] += 1

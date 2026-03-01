@@ -4,7 +4,7 @@ import os
 
 class Settings(BaseSettings):
     # Environment
-    ENV: str = "development"  # development/production
+    ENV: str = "development"
     DEBUG: bool = False
     
     # Server
@@ -14,25 +14,26 @@ class Settings(BaseSettings):
     
     # Redis
     REDIS_URL: Optional[str] = None
-    CACHE_TTL: int = 3600  # 1 hour
+    CACHE_TTL: int = 3600
     
     # Limits
-    MAX_TEXT_LENGTH: int = 100000  # characters
-    BATCH_SIZE: int = 1000  # max texts per batch
-    MAX_BATCH_TOTAL_LENGTH: int = 10_000_000  # 10M chars total
+    MAX_TEXT_LENGTH: int = 100000
+    BATCH_SIZE: int = 1000
+    MAX_BATCH_TOTAL_LENGTH: int = 10_000_000
     
     # Analyzers
     ENABLE_CYRILLIC: bool = True
     ENABLE_LATIN: bool = True
-    LATIN_MODELS: List[str] = ["en_core_web_sm"]
+    LATIN_MODELS: List[str] = ["en_core_web_sm"]  # Было LATIN_MODELS
+    LATIN_MODEL: str = "en_core_web_sm"  # Добавляем для обратной совместимости
     
-    # Cyrillic languages (pymorphy3 supports)
-    CYRILLIC_LANGUAGES: List[str] = ["ru", "uk", "be"]
+    # Cyrillic languages
+    CYRILLIC_LANGUAGES: List[str] = ["ru", "uk", "be"] # ["ru", "uk", "be"]
     
     # Performance
     THREAD_POOL_SIZE: int = 8
-    REQUEST_TIMEOUT: int = 30  # seconds
-    BATCH_TIMEOUT: int = 300  # seconds
+    REQUEST_TIMEOUT: int = 30
+    BATCH_TIMEOUT: int = 300
     
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -41,13 +42,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Игнорировать лишние поля из env
 
-# Глобальный экземпляр настроек
 settings = Settings()
-
-# Настройка логирования
-import logging
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL),
-    format=settings.LOG_FORMAT
-)

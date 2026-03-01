@@ -1,6 +1,0 @@
-fastapi==0.115.12
-uvicorn[standard]==0.34.0
-pymorphy3==2.0.6
-pymorphy3-dicts-ru
-pydantic==2.11.3
-python-multipart==0.0.20
