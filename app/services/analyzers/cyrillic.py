@@ -2,6 +2,13 @@ import pymorphy3
 from typing import Dict, Any, List, Optional
 import time
 from .base import BaseAnalyzer, AnalysisResult
+from ..toponym_rules import (
+    GEO_MARKERS_RU,
+    PLACE_PREPOSITIONS_RU,
+    PREPOSITION_CASES_RU,
+    calculate_relevance_score_ru,
+    post_process_context_ru
+)
 
 class CyrillicAnalyzer(BaseAnalyzer):
     """Анализатор для кириллических языков (русский, украинский и др.)"""
@@ -95,6 +102,10 @@ class CyrillicAnalyzer(BaseAnalyzer):
     def __init__(self, language: str = 'ru'):
         super().__init__(language)
         self.analyzer = pymorphy3.MorphAnalyzer(lang=language)
+        # Используем правила из toponym_rules
+        self.geo_markers = GEO_MARKERS_RU
+        self.place_prepositions = PLACE_PREPOSITIONS_RU
+        self.preposition_cases = PREPOSITION_CASES_RU
     
     def _analyze_single(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
         """Внутренний метод анализа одного слова (без статистики)"""
@@ -162,3 +173,42 @@ class CyrillicAnalyzer(BaseAnalyzer):
             is_uppercase=is_upper,
             is_sentence_start=False,
         )
+
+    def calculate_relevance(self, word: AnalysisResult, words: List[AnalysisResult], idx: int) -> float:
+            """Расчет релевантности для русского языка (из MVP)"""
+            # Подготавливаем данные для функции
+            nearby_geo_markers = []
+            start = max(0, idx - 3)
+            end = min(len(words), idx + 3)
+            for j in range(start, end):
+                if j != idx:
+                    nearby_geo_markers.append(words[j].is_geo_marker)
+            
+            prev_word = words[idx-1].word if idx > 0 else None
+            
+            return calculate_relevance_score_ru(
+                word_pos=word.pos,
+                is_uppercase=word.is_uppercase,
+                is_sentence_start=word.is_sentence_start,
+                word_case=word.case,
+                nearby_geo_markers=nearby_geo_markers,
+                prev_word=prev_word
+            )
+        
+    def post_process(self, words: List[AnalysisResult]) -> List[AnalysisResult]:
+        """Пост-обработка для русского языка (из MVP)"""
+        # Конвертируем в dict для обработки
+        words_dict = [w.to_dict() for w in words]
+        processed_dict = post_process_context_ru(words_dict)
+        
+        # Конвертируем обратно в объекты
+        processed_words = []
+        for i, w_dict in enumerate(processed_dict):
+            # Обновляем relevance_score в исходном объекте
+            words[i].relevance_score = w_dict.get('relevance_score', 0)
+            if w_dict.get('pos') != words[i].pos:
+                words[i].pos = w_dict['pos']
+                words[i].pos_eng = w_dict['pos_eng']
+            processed_words.append(words[i])
+        
+        return processed_words    
