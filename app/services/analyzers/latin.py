@@ -3,6 +3,33 @@ from typing import Dict, Any, List, Optional
 import time
 from .base import BaseAnalyzer, AnalysisResult
 
+# Временные заглушки для английских правил (позже заменим)
+ENGLISH_GEO_MARKERS = {
+    'city', 'cities', 'town', 'towns', 'village', 'villages',
+    'river', 'rivers', 'lake', 'lakes', 'mountain', 'mountains',
+    'country', 'countries', 'state', 'states', 'region', 'regions',
+    'capital', 'capitals', 'ocean', 'sea', 'seas', 'bay', 'bays'
+}
+
+ENGLISH_PLACE_PREPOSITIONS = {
+    'in', 'at', 'on', 'to', 'from', 'near', 'by', 'under', 'over', 'above', 'below'
+}
+
+def calculate_relevance_score_en(
+    word_pos: str,
+    is_uppercase: bool,
+    is_sentence_start: bool,
+    nearby_geo_markers: List[bool],
+    prev_word: str = None
+) -> float:
+    """
+    Временная заглушка для расчета релевантности английских топонимов
+    Возвращает базовое значение 0.5 для всех слов
+    Позже будет заменена на полноценную реализацию
+    """
+    # TODO: Реализовать полноценные правила для английского языка
+    return 0.5
+
 class LatinAnalyzer(BaseAnalyzer):
     """Анализатор для латинских языков (английский, немецкий и др.)"""
     
@@ -26,6 +53,9 @@ class LatinAnalyzer(BaseAnalyzer):
             self.nlp = spacy.load(model)
         
         self.model = model
+        # Временные правила для английского
+        self.geo_markers = ENGLISH_GEO_MARKERS
+        self.place_prepositions = ENGLISH_PLACE_PREPOSITIONS
     
     def _analyze_single(self, word: str, context: Optional[List[str]] = None) -> AnalysisResult:
         """Внутренний метод анализа одного слова"""
@@ -50,6 +80,7 @@ class LatinAnalyzer(BaseAnalyzer):
         
         # Определяем регистр
         is_upper = clean_word[0].isupper()
+        is_geo = clean_word.lower() in self.geo_markers
         
         # Анализ с spaCy
         doc = self.nlp(clean_word)
@@ -60,9 +91,10 @@ class LatinAnalyzer(BaseAnalyzer):
             pos_eng = token.tag_
             normal_form = token.lemma_
             
+            morph = token.morph
             # Извлекаем морфологические признаки
-            number = 'singular' if token.morph.get('Number') == ['Sing'] else 'plural'
-            gender = token.morph.get('Gender', [''])[0] if token.morph.get('Gender') else ''
+            number = 'singular' if morph.get('Number') == ['Sing'] else 'plural'
+            gender = morph.get('Gender', [''])[0] if morph.get('Gender') else ''
         else:
             pos = 'unknown'
             pos_eng = 'UNKN'
@@ -80,13 +112,44 @@ class LatinAnalyzer(BaseAnalyzer):
             gender=gender,
             normal_form=normal_form,
             score=1.0,
-            is_geo_marker=False,
+            is_geo_marker=is_geo,
             is_uppercase=is_upper,
             is_sentence_start=False,
         )
     
+    def calculate_relevance(self, word: AnalysisResult, words: List[AnalysisResult], idx: int) -> float:
+        """
+        Расчет релевантности для английского языка
+        Пока возвращает заглушку, позже будет заменена
+        """
+        # Подготавливаем данные для функции
+        nearby_geo_markers = []
+        start = max(0, idx - 3)
+        end = min(len(words), idx + 3)
+        for j in range(start, end):
+            if j != idx:
+                nearby_geo_markers.append(words[j].is_geo_marker)
+        
+        prev_word = words[idx-1].word if idx > 0 else None
+        
+        return calculate_relevance_score_en(
+            word_pos=word.pos,
+            is_uppercase=word.is_uppercase,
+            is_sentence_start=word.is_sentence_start,
+            nearby_geo_markers=nearby_geo_markers,
+            prev_word=prev_word
+        )
+    
+    def post_process(self, words: List[AnalysisResult]) -> List[AnalysisResult]:
+        """
+        Пост-обработка для английского языка
+        Пока ничего не делает, позже будет реализована
+        """
+        # TODO: Реализовать пост-обработку для английского
+        return words
+
     def analyze_batch(self, words: List[str]) -> List[AnalysisResult]:
-        """Переопределяем для оптимизации с spaCy pipeline"""
+        """Пакетная обработка с spaCy pipeline"""
         start_time = time.time()
         
         # Фильтруем пустые слова
@@ -112,7 +175,7 @@ class LatinAnalyzer(BaseAnalyzer):
                     gender=token.morph.get('Gender', [''])[0] if token.morph.get('Gender') else '',
                     normal_form=token.lemma_,
                     score=1.0,
-                    is_geo_marker=False,
+                    is_geo_marker=token.text.lower() in self.geo_markers,
                     is_uppercase=token.text[0].isupper() if token.text else False,
                     is_sentence_start=False,
                 )
