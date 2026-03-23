@@ -14,9 +14,9 @@ services:
       - MAX_TEXT_LENGTH=100000
       - BATCH_SIZE=1000
       - LOG_LEVEL=INFO
-    depends_on:
-      redis:
-        condition: service_healthy
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
     networks:
       - morph-network
       - gmtx_net
@@ -33,46 +33,46 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  redis:
-    image: redis:7-alpine
-    container_name: morph-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-      - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
-    networks:
-      - morph-network
-      - gmtx_net
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    command: redis-server /usr/local/etc/redis/redis.conf
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: morph-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #     - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
+  #   networks:
+  #     - morph-network
+  #     - gmtx_net
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   command: redis-server /usr/local/etc/redis/redis.conf
+  #   restart: unless-stopped
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
-  # Опционально: Redis Commander для администрирования
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: morph-redis-commander
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    ports:
-      - "8081:8081"
-    networks:
-      - morph-network
-      - gmtx_net
-    depends_on:
-      - redis
-    restart: unless-stopped
-    profiles:
-      - dev
+  # # Опционально: Redis Commander для администрирования
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: morph-redis-commander
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379
+  #   ports:
+  #     - "8081:8081"
+  #   networks:
+  #     - morph-network
+  #     - gmtx_net
+  #   depends_on:
+  #     - redis
+  #   restart: unless-stopped
+  #   profiles:
+  #     - dev
 
 networks:
   gmtx_net:
@@ -80,6 +80,6 @@ networks:
   morph-network:
     driver: bridge
 
-volumes:
-  redis-data:
-    driver: local
+# volumes:
+#   redis-data:
+#     driver: local
